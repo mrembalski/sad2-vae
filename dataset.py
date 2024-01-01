@@ -29,20 +29,20 @@ class SMDGDataset(TensorDataset): # pylint: disable=too-few-public-methods
                 tensors.append(torch.load(f"{NORMALIZED_DATASET}/{split}/1/{tensor_filename}"))
                 classes.append(torch.tensor(1))
 
-            torch.save(
-                (
-                    torch.stack(tensors),
-                    torch.stack(classes)
-                ),
-                f"{NORMALIZED_DATASET}/{split}/stacked_tensors.pt"
-            )
-
             if tensors[0].ndim == 2:
                 # If the tensors are 2D, add a channel dimension
                 tensors = [tensor.unsqueeze(0) for tensor in tensors]
 
             tensors = torch.stack(tensors)
             classes = torch.stack(classes)
+
+            torch.save(
+                (
+                    tensors,
+                    classes,
+                ),
+                f"{NORMALIZED_DATASET}/{split}/stacked_tensors.pt"
+            )
 
         self.tensors = (
             tensors,
