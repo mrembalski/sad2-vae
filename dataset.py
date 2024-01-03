@@ -50,4 +50,3 @@ class SMDGDataset(TensorDataset): # pylint: disable=too-few-public-methods
         )
 
         print(f"Loaded {len(self.tensors[0])} tensors from {split} split.")
-        print(f"Tensor shape: {self.tensors[0].shape}")
