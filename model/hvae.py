@@ -4,13 +4,14 @@ from PIL import Image # type: ignore
 import numpy as np
 
 import torch
-import torch.nn.functional as F
 import lightning as L
 from typeguard import typechecked
 
 from model.encoder import Encoder
 from model.latent_space import LatentSpace
 from model.decoder import Decoder
+
+ANNEALLING_STEPS = 100
 
 class HVAE(L.LightningModule):
     @typechecked
@@ -75,7 +76,7 @@ class HVAE(L.LightningModule):
 
         scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
-            lambda step: min(1.0, (step + 1) / 25.0),
+            lambda step: min(1.0, (step + 1) / float(ANNEALLING_STEPS)),
         )
 
         return {
@@ -89,10 +90,10 @@ class HVAE(L.LightningModule):
 
     def kl_divergence_loss(self, mu, logvar):
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-        return kl_loss.mean()
+        return kl_loss.sum()
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        bce_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='mean')
+        rec_loss = torch.nn.functional.binary_cross_entropy(reconstructed_x, x, reduction='sum')
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):
@@ -100,8 +101,11 @@ class HVAE(L.LightningModule):
 
         bkl_loss = self.beta * kl_loss
 
-        print(f"bce_loss: {bce_loss:.4f}")
+        if self.global_step < ANNEALLING_STEPS:
+            bkl_loss *= (self.global_step + 1) / ANNEALLING_STEPS
+
+        print(f"rec_loss: {rec_loss:.4f}")
         print(f"bkl_loss: {bkl_loss:.4f}")
 
-        loss = bce_loss + bkl_loss
+        loss = rec_loss + bkl_loss
         return loss
