@@ -8,7 +8,7 @@ class Encoder(nn.Module):
         modules = []
 
         # use enumerate
-        for h_dim in encoder_hidden_dims:
+        for i, h_dim in enumerate(encoder_hidden_dims):
             modules.append(
                 nn.Sequential(
                     nn.Conv2d(
@@ -18,9 +18,12 @@ class Encoder(nn.Module):
                         stride=2,
                         padding=1,
                     ),
-                    nn.LeakyReLU(),
                 ),
             )
+
+            if i != len(encoder_hidden_dims) - 1:
+                modules.append(nn.LeakyReLU())
+
             input_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
