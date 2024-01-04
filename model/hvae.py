@@ -75,7 +75,7 @@ class HVAE(L.LightningModule):
 
         scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
-            lambda step: min(1.0, (step + 1) / 100.0),
+            lambda step: min(1.0, (step + 1) / 25.0),
         )
 
         return {
