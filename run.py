@@ -18,7 +18,7 @@ vae_model = HVAE(
     initial_image_size = 224,
     input_channels = 3,
     output_channels = 3,
-    encoder_hidden_dims = [32, 64, 128, 256, 512],
+    encoder_hidden_dims = [64, 128, 256, 512, 1024],
     latent_dims = [256],
     learning_rate = 1e-3,
     beta = 1.0,
@@ -27,12 +27,12 @@ vae_model = HVAE(
 # Apply to your model
 vae_model.apply(initialize_weights_he)
 
-trainer = L.Trainer(max_epochs=10, callbacks=[ModelSummary(max_depth=2)])
+trainer = L.Trainer(max_epochs=10, callbacks=[ModelSummary(max_depth=4)])
 
 train_dataset = datasets.ImageFolder(root='SMDG-19/train', transform=transform)
-train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+train_dataloader = DataLoader(train_dataset, batch_size=16, shuffle=True)
 trainer.fit(vae_model, train_dataloader)
 
 test_dataset = datasets.ImageFolder(root='SMDG-19/test', transform=transform)
-test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=True)
+test_dataloader = DataLoader(test_dataset, batch_size=16, shuffle=True)
 trainer.test(vae_model, test_dataloader)
