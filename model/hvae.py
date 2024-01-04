@@ -32,6 +32,8 @@ class HVAE(L.LightningModule):
         self.decoder = Decoder(initial_image_size, output_channels, encoder_hidden_dims, latent_dims[-1])
         self.learning_rate = learning_rate
 
+        self.save_hyperparameters()
+
     def _step(self, x):
         x = self.encoder(x)
         mus, logvars = self.latent_space(x)
