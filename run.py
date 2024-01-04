@@ -9,19 +9,19 @@ from model.hvae import HVAE
 
 # Define the image transformations
 transform = transforms.Compose([
-    transforms.Resize((256, 256)),
+    transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.RandomVerticalFlip(p=0.5),
 ])
 
 vae_model = HVAE(
-    initial_image_size = 256,
+    initial_image_size = 224,
     input_channels = 3,
     output_channels = 3,
-    encoder_hidden_dims = [32, 64, 128, 256, 512, 1024],
+    encoder_hidden_dims = [32, 64, 128, 256, 512],
     latent_dims = [256],
-    learning_rate = 1e-4,
+    learning_rate = 1e-3,
     beta = 1.0,
 )
 
