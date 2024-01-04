@@ -100,8 +100,8 @@ class HVAE(L.LightningModule):
 
         bkl_loss = self.beta * kl_loss
 
-        print(f"bce_loss: {bce_loss:.3f}")
-        print(f"bkl_loss: {bkl_loss:.3f}")
+        print(f"bce_loss: {bce_loss:.4f}")
+        print(f"bkl_loss: {bkl_loss:.4f}")
 
         loss = bce_loss + bkl_loss
         return loss
