@@ -7,12 +7,18 @@ from torchvision import datasets, transforms # type: ignore
 
 from model.hvae import HVAE
 
-# Define the image transformations
-transform = transforms.Compose([
+base_transform = [
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.RandomVerticalFlip(p=0.5),
+]
+
+# Define the image transformations
+train_transform = transforms.Compose(
+    base_transform + [
+    # transforms.RandomRotation(360),
+    # transforms.RandomAffine(0, translate=(0.2, 0.2)),
 ])
 
 vae_model = HVAE(
@@ -21,8 +27,8 @@ vae_model = HVAE(
     output_channels = 3,
     encoder_hidden_dims = [32, 64, 128, 256, 512],
     latent_dims = [256],
-    learning_rate = 1e-4,
-    beta = 4.0,
+    learning_rate = 1e-3,
+    beta = 16.0,
 )
 
 logger = TensorBoardLogger("tb_logs", name="my_model")
@@ -34,10 +40,10 @@ trainer = L.Trainer(
     logger=logger,
 )
 
-train_dataset = datasets.ImageFolder(root='SMDG-19/train', transform=transform)
+train_dataset = datasets.ImageFolder(root='SMDG-19/train', transform=train_transform)
 train_dataloader = DataLoader(train_dataset, batch_size=8, shuffle=True)
 trainer.fit(vae_model, train_dataloader)
 
-test_dataset = datasets.ImageFolder(root='SMDG-19/test', transform=transform)
+test_dataset = datasets.ImageFolder(root='SMDG-19/test', transform=base_transform)
 test_dataloader = DataLoader(test_dataset, batch_size=8, shuffle=True)
 trainer.test(vae_model, test_dataloader)

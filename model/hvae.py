@@ -101,9 +101,6 @@ class HVAE(L.LightningModule):
 
         bkl_loss = self.beta * kl_loss
 
-        if self.global_step < ANNEALLING_STEPS:
-            bkl_loss *= (self.global_step + 1) / ANNEALLING_STEPS
-
         print(f"rec_loss: {rec_loss:.4f}")
         print(f"bkl_loss: {bkl_loss:.4f}")
 
