@@ -12,13 +12,6 @@ from model.encoder import Encoder
 from model.latent_space import LatentSpace
 from model.decoder import Decoder
 
-def initialize_weights_he(m):
-    if isinstance(m, torch.nn.Linear):
-        torch.nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')
-        if m.bias is not None:
-            torch.nn.init.constant_(m.bias, 0)
-
-
 class HVAE(L.LightningModule):
     @typechecked
     # pylint: disable=too-many-arguments

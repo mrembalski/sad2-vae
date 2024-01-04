@@ -26,7 +26,7 @@ class LatentSpace(nn.Module):
 
         # Linear layers
         self.fc_mu = nn.Linear(self.flattened_size, dims[0])
-        self.fc_var = nn.Linear(self.flattened_size, dims[0])
+        self.fc_logvar = nn.Linear(self.flattened_size, dims[0])
 
         for i in range(len(dims) - 1):
             self.add_module(
@@ -37,6 +37,14 @@ class LatentSpace(nn.Module):
                 f"fc_logvar_{i}",
                 nn.Linear(dims[i], dims[i + 1]),
             )
+        # initialize weights at 0s
+        self.fc_logvar.weight.data.zero_()
+        self.fc_logvar.bias.data.zero_()
+
+        for i in range(len(dims) - 1):
+            self.__getattr__(f"fc_logvar_{i}").weight.data.zero_()
+            self.__getattr__(f"fc_logvar_{i}").bias.data.zero_()
+
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -53,7 +61,7 @@ class LatentSpace(nn.Module):
 
         # Get the mean and logvar for the first layer
         mu = self.fc_mu(x)
-        logvar = self.fc_var(x)
+        logvar = self.fc_logvar(x)
 
         # Append to the list
         mus.append(mu)
