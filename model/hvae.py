@@ -93,7 +93,7 @@ class HVAE(L.LightningModule):
         return kl_loss.sum()
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = torch.nn.functional.binary_cross_entropy(reconstructed_x, x, reduction='sum')
+        rec_loss = torch.nn.functional.mse_loss(reconstructed_x, x, reduction='sum')
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):

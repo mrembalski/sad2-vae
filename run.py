@@ -21,7 +21,7 @@ vae_model = HVAE(
     output_channels = 3,
     encoder_hidden_dims = [32, 64, 128, 256, 512],
     latent_dims = [256],
-    learning_rate = 1e-3,
+    learning_rate = 1e-4,
     beta = 1.0,
 )
 
