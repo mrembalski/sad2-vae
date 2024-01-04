@@ -22,7 +22,7 @@ vae_model = HVAE(
     encoder_hidden_dims = [32, 64, 128, 256, 512],
     latent_dims = [256],
     learning_rate = 1e-4,
-    beta = 1.0,
+    beta = 4.0,
 )
 
 logger = TensorBoardLogger("tb_logs", name="my_model")
