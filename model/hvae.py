@@ -78,7 +78,21 @@ class HVAE(L.LightningModule):
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer,
+            lambda step: min(1.0, (step + 1) / 100.0),
+        )
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'interval': 'step',
+                'frequency': 1,
+            }
+        }
 
     def kl_divergence_loss(self, mu, logvar):
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
@@ -91,8 +105,10 @@ class HVAE(L.LightningModule):
         for mu, logvar in zip(mus, logvars):
             kl_loss += self.kl_divergence_loss(mu, logvar)
 
-        print(f"bce_loss: {bce_loss}")
-        print(f"kl_loss: {kl_loss}")
+        bkl_loss = self.beta * kl_loss
 
-        loss = bce_loss + self.beta * kl_loss
+        print(f"bce_loss: {bce_loss:.3f}")
+        print(f"bkl_loss: {bkl_loss:.3f}")
+
+        loss = bce_loss + bkl_loss
         return loss
