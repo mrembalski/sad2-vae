@@ -52,18 +52,11 @@ class Decoder(nn.Module):
         self.final_layer = nn.Sequential(
             nn.ConvTranspose2d(
                 hidden_dims[-1],
-                hidden_dims[-1],
+                output_channels,
                 kernel_size=3,
                 stride=2,
                 padding=1,
                 output_padding=1,
-            ),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                hidden_dims[-1],
-                output_channels,
-                kernel_size=3,
-                padding=1,
             ),
             nn.Sigmoid(),
         )
