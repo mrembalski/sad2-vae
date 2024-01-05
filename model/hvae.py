@@ -123,10 +123,10 @@ class HVAE(L.LightningModule):
         for mu, logvar in zip(mus, logvars):
             kl_loss += self.kl_divergence_loss(mu, logvar)
 
-        bkl_loss = self.beta * kl_loss
+        bkl_loss = self.kl_coefficient * self.beta * kl_loss
 
-        print(f"rec_loss: {rec_loss:.4f}")
-        print(f"bkl_loss: {bkl_loss:.4f}")
+        print(f"recon_loss: {rec_loss:.4f}")
+        print(f"bkl*c_loss: {bkl_loss:.4f}")
 
         loss = rec_loss + bkl_loss
         return loss
