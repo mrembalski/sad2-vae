@@ -115,10 +115,10 @@ class HVAE(L.LightningModule):
 
     def kl_divergence_loss(self, mu, logvar):
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-        return kl_loss.sum()
+        return kl_loss.mean()
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = torch.nn.functional.binary_cross_entropy(reconstructed_x, x, reduction='sum')
+        rec_loss = torch.nn.functional.binary_cross_entropy(reconstructed_x, x, reduction='mean')
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):

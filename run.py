@@ -17,7 +17,7 @@ def clahe(x: torch.Tensor):
     x = torch.from_numpy(x).unsqueeze(0)
     return x
 
-IS_GREYSCALE = False
+IS_GREYSCALE = True
 
 base_transform = [
     transforms.Resize((224, 224)),
@@ -30,7 +30,6 @@ base_transform = [
 
 train_transform = transforms.Compose(
     base_transform + [
-        transforms.RandomRotation(degrees=90),
 ])
 
 val_transform = transforms.Compose(
@@ -42,10 +41,10 @@ vae_model = HVAE(
     input_channels = 1 if IS_GREYSCALE else 3,
     output_channels = 1 if IS_GREYSCALE else 3,
     encoder_hidden_dims = [32, 64, 128, 256],
-    latent_dims = [256],
-    learning_rate = 5e-4,
+    latent_dims = [32],
+    learning_rate = 1e-3,
     # We can afford to have a high beta because of the annealing
-    beta = 128.0,
+    beta = 1 / 2 ** 5,
 )
 
 
@@ -54,16 +53,7 @@ def init_weights(m):
         torch.nn.init.kaiming_uniform_(m.weight)
         m.bias.data.fill_(0.01)
 
-    if isinstance(m, nn.Conv2d):
-        torch.nn.init.kaiming_uniform_(m.weight)
-        m.bias.data.fill_(0.01)
-
-    if isinstance(m, nn.ConvTranspose2d):
-        torch.nn.init.kaiming_uniform_(m.weight)
-        m.bias.data.fill_(0.01)
-
-
-vae_model.apply(init_weights)
+vae_model.latent_space.apply(init_weights)
 
 logger = TensorBoardLogger(
     "tb_logs", 
