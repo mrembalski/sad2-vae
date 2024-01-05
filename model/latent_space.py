@@ -37,14 +37,6 @@ class LatentSpace(nn.Module):
                 f"fc_logvar_{i}",
                 nn.Linear(dims[i], dims[i + 1]),
             )
-        # initialize weights at 0s
-        self.fc_logvar.weight.data.zero_()
-        self.fc_logvar.bias.data.zero_()
-
-        for i in range(len(dims) - 1):
-            self.__getattr__(f"fc_logvar_{i}").weight.data.zero_()
-            self.__getattr__(f"fc_logvar_{i}").bias.data.zero_()
-
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
