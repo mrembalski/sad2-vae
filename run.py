@@ -17,7 +17,7 @@ def clahe(x: torch.Tensor):
     x = torch.from_numpy(x).unsqueeze(0)
     return x
 
-IS_GREYSCALE = True
+IS_GREYSCALE = False
 
 base_transform = [
     transforms.Resize((224, 224)),
@@ -41,7 +41,6 @@ vae_model = HVAE(
     initial_image_size = 224,
     input_channels = 1 if IS_GREYSCALE else 3,
     output_channels = 1 if IS_GREYSCALE else 3,
-    # Number of passes:
     encoder_hidden_dims = [32, 64, 128, 256],
     latent_dims = [256],
     learning_rate = 5e-4,

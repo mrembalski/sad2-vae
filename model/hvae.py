@@ -24,8 +24,8 @@ class KLAnnealingCallback(L.Callback):
         new_kl_coefficient = 1 - (0.5 * (1 + np.cos(np.pi * current_step / self.anneal_steps)))
         pl_module.kl_coefficient = new_kl_coefficient
 
-        trainer.logger.log_metrics({'kl_coeff': new_kl_coefficient}, step=current_step)
-        trainer.logger.log_metrics({'kl_beta': pl_module.beta * pl_module.kl_coefficient}, step=current_step)
+        trainer.logger.log_metrics({'kl_coeff': new_kl_coefficient}, step=trainer.global_step)
+        trainer.logger.log_metrics({'kl_beta': pl_module.beta * pl_module.kl_coefficient}, step=trainer.global_step)
 
 class HVAE(L.LightningModule):
     @typechecked
