@@ -18,11 +18,9 @@ class Encoder(nn.Module):
                         stride=2,
                         padding=1,
                     ),
+                    nn.LeakyReLU(),
                 ),
             )
-
-            if i != len(encoder_hidden_dims) - 1:
-                modules.append(nn.LeakyReLU())
 
             input_channels = h_dim
 
