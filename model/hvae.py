@@ -51,8 +51,9 @@ class HVAE(L.LightningModule):
         _x = (_x * 255).astype('uint8')
         _rx = (_rx * 255).astype('uint8')
 
-        Image.fromarray(_x.transpose(1, 2, 0)).save("training_tensors/x.png")
-        Image.fromarray(_rx.transpose(1, 2, 0)).save("training_tensors/rx.png")
+        # Save grayscale image
+        Image.fromarray(_x.squeeze(0)).save("training_tensors/x.png")
+        Image.fromarray(_rx.squeeze(0)).save("training_tensors/rx.png")
 
     # pylint: disable=arguments-differ
     def training_step(self, batch, batch_idx):
@@ -74,7 +75,11 @@ class HVAE(L.LightningModule):
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.learning_rate,
+            weight_decay=1e-5,
+        )
 
         scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
@@ -95,7 +100,7 @@ class HVAE(L.LightningModule):
         return kl_loss.sum()
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = torch.nn.functional.mse_loss(reconstructed_x, x, reduction='sum')
+        rec_loss = torch.nn.functional.binary_cross_entropy(reconstructed_x, x, reduction='sum')
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):
