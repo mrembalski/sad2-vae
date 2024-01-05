@@ -8,7 +8,7 @@ class Encoder(nn.Module):
         modules = []
 
         # use enumerate
-        for i, h_dim in enumerate(encoder_hidden_dims):
+        for h_dim in encoder_hidden_dims:
             modules.append(
                 nn.Sequential(
                     nn.Conv2d(
