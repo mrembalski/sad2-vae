@@ -11,7 +11,23 @@ from model.encoder import Encoder
 from model.latent_space import LatentSpace
 from model.decoder import Decoder
 
-ANNEALLING_STEPS = 100
+LR_ANNEALLING_STEPS = 100
+
+class KLAnnealingCallback(L.Callback):
+    def __init__(self, max_kl_coefficient=1.0, anneal_steps=10000):
+        self.max_kl_coefficient = max_kl_coefficient
+        self.anneal_steps = anneal_steps
+
+    # pylint: disable=too-many-arguments
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        current_step = trainer.global_step
+
+        # Cosine annealing with 0 at start
+        new_kl_coefficient = 1 - self.max_kl_coefficient * (1 + np.cos(np.pi * current_step / self.anneal_steps)) / 2
+        pl_module.kl_coefficient = new_kl_coefficient
+
+        trainer.logger.log_metrics({'kl_coeff': new_kl_coefficient}, step=current_step)
+        trainer.logger.log_metrics({'kl_beta': pl_module.beta * pl_module.kl_coefficient}, step=current_step)
 
 class HVAE(L.LightningModule):
     @typechecked
@@ -27,6 +43,7 @@ class HVAE(L.LightningModule):
     ):
         super().__init__()
         self.beta = beta
+        self.kl_coefficient = 1.0
         self.encoder = Encoder(input_channels, encoder_hidden_dims)
         self.latent_space = LatentSpace(initial_image_size, encoder_hidden_dims, latent_dims)
         self.decoder = Decoder(initial_image_size, output_channels, encoder_hidden_dims, latent_dims[-1])
@@ -83,7 +100,7 @@ class HVAE(L.LightningModule):
 
         scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
-            lambda step: min(1.0, (step + 1) / float(ANNEALLING_STEPS)),
+            lambda step: min(1.0, (step + 1) / float(LR_ANNEALLING_STEPS)),
         )
 
         return {
