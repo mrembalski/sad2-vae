@@ -14,16 +14,14 @@ from model.decoder import Decoder
 LR_ANNEALLING_STEPS = 100
 
 class KLAnnealingCallback(L.Callback):
-    def __init__(self, max_kl_coefficient=1.0, anneal_steps=10000):
-        self.max_kl_coefficient = max_kl_coefficient
+    def __init__(self, anneal_steps: int):
         self.anneal_steps = anneal_steps
 
     # pylint: disable=too-many-arguments
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        current_step = trainer.global_step
+        current_step = trainer.global_step % self.anneal_steps
 
-        # Cosine annealing with 0 at start
-        new_kl_coefficient = 1 - self.max_kl_coefficient * (1 + np.cos(np.pi * current_step / self.anneal_steps)) / 2
+        new_kl_coefficient = 1 - (0.5 * (1 + np.cos(np.pi * current_step / self.anneal_steps)))
         pl_module.kl_coefficient = new_kl_coefficient
 
         trainer.logger.log_metrics({'kl_coeff': new_kl_coefficient}, step=current_step)
@@ -68,9 +66,12 @@ class HVAE(L.LightningModule):
         _x = (_x * 255).astype('uint8')
         _rx = (_rx * 255).astype('uint8')
 
-        # Save grayscale image
-        Image.fromarray(_x.squeeze(0)).save("training_tensors/x.png")
-        Image.fromarray(_rx.squeeze(0)).save("training_tensors/rx.png")
+        if _x.shape[0] == 3:
+            Image.fromarray(np.transpose(_x, (1, 2, 0)), mode='RGB').save("training_tensors/x.png")
+            Image.fromarray(np.transpose(_rx, (1, 2, 0)), mode='RGB').save("training_tensors/rx.png")
+        else: 
+            Image.fromarray(_x[0], mode='L').save("training_tensors/x.png")
+            Image.fromarray(_rx[0], mode='L').save("training_tensors/rx.png")
 
     # pylint: disable=arguments-differ
     def training_step(self, batch, batch_idx):
