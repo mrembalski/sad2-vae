@@ -2,7 +2,7 @@
 from PIL import Image # type: ignore
 
 import numpy as np
-
+from torchmetrics.image import StructuralSimilarityIndexMeasure
 import torch
 import lightning as L
 from typeguard import typechecked
@@ -47,6 +47,7 @@ class HVAE(L.LightningModule):
         self.decoder = Decoder(initial_image_size, output_channels, encoder_hidden_dims, latent_dims[-1])
         self.learning_rate = learning_rate
 
+        self.rec_loss = StructuralSimilarityIndexMeasure(data_range=1.0, reduction='none')
         self.save_hyperparameters()
 
     def _step(self, x):
@@ -69,7 +70,7 @@ class HVAE(L.LightningModule):
         if _x.shape[0] == 3:
             Image.fromarray(np.transpose(_x, (1, 2, 0)), mode='RGB').save("training_tensors/x.png")
             Image.fromarray(np.transpose(_rx, (1, 2, 0)), mode='RGB').save("training_tensors/rx.png")
-        else: 
+        else:
             Image.fromarray(_x[0], mode='L').save("training_tensors/x.png")
             Image.fromarray(_rx[0], mode='L').save("training_tensors/rx.png")
 
@@ -118,7 +119,8 @@ class HVAE(L.LightningModule):
         return kl_loss.mean()
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = torch.nn.functional.binary_cross_entropy(reconstructed_x, x, reduction='mean')
+        rec_loss = 1 - (1 + self.rec_loss(reconstructed_x, x)) / 2
+        rec_loss = rec_loss.mean()
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):
