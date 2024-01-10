@@ -14,13 +14,14 @@ from model.hvae import HVAE, KLAnnealingCallback
 def clahe(x: torch.Tensor):
     x = x.numpy()
     x = exposure.equalize_adapthist(x)
-    x = torch.from_numpy(x).unsqueeze(0)
+    x = torch.from_numpy(x)
     return x
 
 IS_GREYSCALE = True
+INITIAL_IMAGE_SIZE = 256
 
 base_transform = [
-    transforms.Resize((224, 224)),
+    transforms.Resize((INITIAL_IMAGE_SIZE, INITIAL_IMAGE_SIZE)),
     transforms.ToTensor(),
     # Get green channel if greyscale else turn to RGB
     transforms.Lambda(lambda x: x[1].unsqueeze(0) if IS_GREYSCALE else x),
@@ -30,6 +31,7 @@ base_transform = [
 
 train_transform = transforms.Compose(
     base_transform + [
+        transforms.Lambda(clahe),
 ])
 
 val_transform = transforms.Compose(
@@ -37,14 +39,14 @@ val_transform = transforms.Compose(
 )
 
 vae_model = HVAE(
-    initial_image_size = 224,
+    initial_image_size = INITIAL_IMAGE_SIZE,
     input_channels = 1 if IS_GREYSCALE else 3,
     output_channels = 1 if IS_GREYSCALE else 3,
     encoder_hidden_dims = [32, 64, 128, 256],
-    latent_dims = [32],
+    latent_dims = [256, 128],
     learning_rate = 1e-3,
     # We can afford to have a high beta because of the annealing
-    beta = 1 / 2 ** 5,
+    beta = 0.001,
 )
 
 
