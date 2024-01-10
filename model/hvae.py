@@ -2,8 +2,8 @@
 from PIL import Image # type: ignore
 
 import numpy as np
-from torchmetrics.image import StructuralSimilarityIndexMeasure
 import torch
+import torch.nn.functional as F
 import lightning as L
 from typeguard import typechecked
 
@@ -27,6 +27,7 @@ class KLAnnealingCallback(L.Callback):
         trainer.logger.log_metrics({'kl_coeff': new_kl_coefficient}, step=trainer.global_step)
         trainer.logger.log_metrics({'kl_beta': pl_module.beta * pl_module.kl_coefficient}, step=trainer.global_step)
 
+
 class HVAE(L.LightningModule):
     @typechecked
     # pylint: disable=too-many-arguments
@@ -46,8 +47,6 @@ class HVAE(L.LightningModule):
         self.latent_space = LatentSpace(initial_image_size, encoder_hidden_dims, latent_dims)
         self.decoder = Decoder(initial_image_size, output_channels, encoder_hidden_dims, latent_dims[-1])
         self.learning_rate = learning_rate
-
-        self.rec_loss = StructuralSimilarityIndexMeasure(data_range=1.0, reduction='none')
         self.save_hyperparameters()
 
     def _step(self, x):
@@ -119,8 +118,7 @@ class HVAE(L.LightningModule):
         return kl_loss.mean()
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = 1 - (1 + self.rec_loss(reconstructed_x, x)) / 2
-        rec_loss = rec_loss.mean()
+        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='none').mean()
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):
