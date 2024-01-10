@@ -42,11 +42,11 @@ vae_model = HVAE(
     initial_image_size = INITIAL_IMAGE_SIZE,
     input_channels = 1 if IS_GREYSCALE else 3,
     output_channels = 1 if IS_GREYSCALE else 3,
-    encoder_hidden_dims = [32, 64, 128, 256],
-    latent_dims = [256, 128],
+    encoder_hidden_dims = [64],
+    latent_dims = [64],
     learning_rate = 1e-3,
     # We can afford to have a high beta because of the annealing
-    beta = 0.001,
+    beta = 1 / 2 ** 20,
 )
 
 

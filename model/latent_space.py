@@ -34,8 +34,7 @@ class LatentSpace(nn.Module):
         self.additional_fc_logvar = nn.ModuleList([nn.Linear(dims[i], dims[i + 1]) for i in range(len(dims) - 1)])
 
     def reparameterize(self, mu, logvar):
-        # Adding 1e-6 to logvar to avoid numerical instability
-        std = torch.exp(0.5 * logvar + 1e-6)
+        std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return eps * std + mu
 
