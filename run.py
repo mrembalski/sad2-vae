@@ -42,11 +42,13 @@ vae_model = HVAE(
     initial_image_size = INITIAL_IMAGE_SIZE,
     input_channels = 1 if IS_GREYSCALE else 3,
     output_channels = 1 if IS_GREYSCALE else 3,
-    encoder_hidden_dims = [64],
-    latent_dims = [64],
+    encoder_hidden_dims = [64, 128, 256, 512, 1024],
+    latent_dims = [512],
     learning_rate = 1e-3,
-    # We can afford to have a high beta because of the annealing
-    beta = 1 / 2 ** 20,
+    # Raczej między (0, 1) + cyclic annealing
+    beta = 1 / 8,
+    stride = 2,
+    expansion = 2,
 )
 
 
@@ -68,10 +70,11 @@ train_dataloader = DataLoader(train_dataset, batch_size=16, shuffle=True)
 trainer = L.Trainer(
     max_epochs=10,
     callbacks=[
-        ModelSummary(max_depth=3),
+        ModelSummary(max_depth=4),
         KLAnnealingCallback(anneal_steps=len(train_dataloader)),
         LearningRateMonitor(logging_interval='step'),
     ],
+    log_every_n_steps=10,
     logger=logger,
 )
 
