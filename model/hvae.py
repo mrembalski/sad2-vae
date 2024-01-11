@@ -35,43 +35,81 @@ class HVAE(L.LightningModule):
         initial_image_size: int,
         input_channels: int,
         output_channels: int,
+        stride: int,
         encoder_hidden_dims: list[int],
         latent_dims: list[int],
         learning_rate: float,
         beta: float,
+        expansion: int,
     ):
         super().__init__()
         self.beta = beta
         self.kl_coefficient = 1.0
-        self.encoder = Encoder(input_channels, encoder_hidden_dims)
-        self.latent_space = LatentSpace(initial_image_size, encoder_hidden_dims, latent_dims)
-        self.decoder = Decoder(initial_image_size, output_channels, encoder_hidden_dims, latent_dims[-1])
+        self.expansion = expansion
+
+        self.reduced_size = initial_image_size // (stride ** len(encoder_hidden_dims))
+        self.flattened_size = encoder_hidden_dims[-1] * self.expansion * self.reduced_size * self.reduced_size
+
+        self.encoder = Encoder(
+            input_channels=input_channels,
+            stride=stride,
+            encoder_hidden_dims=encoder_hidden_dims,
+            expansion=self.expansion,
+        )
+        self.latent_space = LatentSpace(
+            dims=latent_dims,
+            flattened_size=self.flattened_size,
+        )
+        self.decoder = Decoder(
+            stride=stride,
+            output_channels=output_channels,
+            encoder_hidden_dims=encoder_hidden_dims,
+            latent_space_dim=latent_dims[-1],
+            expansion=self.expansion,
+            flattened_size=self.flattened_size,
+            reduced_size=self.reduced_size,
+        )
         self.learning_rate = learning_rate
+
+        width = initial_image_size
+        height = initial_image_size
+
+        weights = torch.zeros((1, 1, width, height), device=self.device)
+        circle_center = (width // 2, height // 2)
+        circle_radius = width // 2
+
+        for i in range(width):
+            for j in range(height):
+                if (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= ((circle_radius * 3) // 4) ** 2:
+                    weights[:, :, i, j] = 1.0
+                elif (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= (circle_radius + 2) ** 2:
+                    weights[:, :, i, j] = 0.5
+                else:
+                    weights[:, :, i, j] = 0.1
+
+        self.register_buffer('weights', weights)
+        self.log_image(weights[0], "weights")
+
         self.save_hyperparameters()
 
     def _step(self, x):
         x = self.encoder(x)
         mus, logvars = self.latent_space(x)
+        # print first 5 mus and logvars
         last_z = self.latent_space.reparameterize(mus[-1], logvars[-1])
         reconstructed_x = self.decoder(last_z)
         return reconstructed_x, mus, logvars
 
-    def _log_first_image(self, x, reconstructed_x):
-        _x = x[0].detach().cpu().numpy()
-        _rx = reconstructed_x[0].detach().cpu().numpy()
+    def log_image(self, x, name: str):
+        assert x.ndim == 3
 
-        if np.isnan(_x).any() or np.isnan(_rx).any():
-            print("NaN encountered")
-
-        _x = (_x * 255).astype('uint8')
-        _rx = (_rx * 255).astype('uint8')
-
-        if _x.shape[0] == 3:
-            Image.fromarray(np.transpose(_x, (1, 2, 0)), mode='RGB').save("training_tensors/x.png")
-            Image.fromarray(np.transpose(_rx, (1, 2, 0)), mode='RGB').save("training_tensors/rx.png")
+        x = x.detach().cpu().numpy()
+        x = (x * 255).astype('uint8')
+        if x.shape[1] == 3:
+            Image.fromarray(np.transpose(x, (1, 2, 0)), mode='RGB').save(f"training_tensors/{name}.png")
         else:
-            Image.fromarray(_x[0], mode='L').save("training_tensors/x.png")
-            Image.fromarray(_rx[0], mode='L').save("training_tensors/rx.png")
+            Image.fromarray(x[0], mode='L').save(f"training_tensors/{name}.png")
+
 
     # pylint: disable=arguments-differ
     def training_step(self, batch, batch_idx):
@@ -81,7 +119,8 @@ class HVAE(L.LightningModule):
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         if batch_idx % 10 == 0:
-            self._log_first_image(x, reconstructed_x)
+            self.log_image(x[0], "x")
+            self.log_image(reconstructed_x[0], "rx")
 
         return loss
 
@@ -96,7 +135,6 @@ class HVAE(L.LightningModule):
         optimizer = torch.optim.Adam(
             self.parameters(),
             lr=self.learning_rate,
-            weight_decay=1e-5,
         )
 
         scheduler = torch.optim.lr_scheduler.LambdaLR(
@@ -114,11 +152,11 @@ class HVAE(L.LightningModule):
         }
 
     def kl_divergence_loss(self, mu, logvar):
-        kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-        return kl_loss.mean()
+        kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+        return kl_loss
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='none').mean()
+        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='mean', weight=self.weights)
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):
