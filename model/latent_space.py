@@ -10,24 +10,15 @@ class LatentSpace(nn.Module):
 
     @typechecked
     def __init__(self,
-            initial_image_size: int,
-            encoder_hidden_dims: list[int],
             dims: list[int],
+            flattened_size: int,
         ):
         super().__init__()
         self.dims = dims
+        self.flattened_size = flattened_size
 
-        # Calculate the reduced spatial dimensions
-        self.reduced_size = initial_image_size // (2 ** len(encoder_hidden_dims))
-
-        # Flattened size calculation
-        self.flattened_size = encoder_hidden_dims[-1] * \
-            (self.reduced_size ** 2)
-
-        # Linear layers
         self.fc_mu = nn.Linear(self.flattened_size, dims[0])
         self.fc_logvar = nn.Linear(self.flattened_size, dims[0])
-
 
         # Additional layers for hierarchical structure
         self.additional_fc_mu = nn.ModuleList([nn.Linear(dims[i], dims[i + 1]) for i in range(len(dims) - 1)])
