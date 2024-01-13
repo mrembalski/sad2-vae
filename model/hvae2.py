@@ -40,18 +40,21 @@ class HVAE(L.LightningModule):
         latent_dims: list[int],
         learning_rate: float,
         beta: float,
+        expansion: int,
     ):
         super().__init__()
         self.beta = beta
         self.kl_coefficient = 1.0
+        self.expansion = expansion
 
         self.reduced_size = initial_image_size // (stride ** len(encoder_hidden_dims))
-        self.flattened_size = encoder_hidden_dims[-1] * self.reduced_size * self.reduced_size
+        self.flattened_size = encoder_hidden_dims[-1] * self.expansion * self.reduced_size * self.reduced_size
 
         self.encoder = Encoder(
             input_channels=input_channels,
             stride=stride,
             encoder_hidden_dims=encoder_hidden_dims,
+            expansion=self.expansion,
         )
         self.latent_space = LatentSpace(
             dims=latent_dims,
@@ -62,6 +65,7 @@ class HVAE(L.LightningModule):
             output_channels=output_channels,
             encoder_hidden_dims=encoder_hidden_dims,
             latent_space_dim=latent_dims[-1],
+            expansion=self.expansion,
             flattened_size=self.flattened_size,
             reduced_size=self.reduced_size,
         )
@@ -74,16 +78,36 @@ class HVAE(L.LightningModule):
         circle_center = (width // 2, height // 2)
         circle_radius = width // 2
 
+        weights_sum = width * height
+
+        inner_circle = 0
+        outer_circle = 0
+        background = 0
+
         for i in range(width):
             for j in range(height):
                 if (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= ((circle_radius * 3) // 4) ** 2:
+                    inner_circle += 1
                     weights[i, j] = 1.0
                 elif (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= (circle_radius + 2) ** 2:
+                    outer_circle += 1
                     weights[i, j] = 0.5
                 else:
+                    background += 1
                     weights[i, j] = 0.1
 
-        print(f"weights_sum / before_weights_sum: {torch.sum(weights) / (width * height)}")
+        # 10% background, 20% outer circle, 70% inner circle
+        background_sum = weights_sum * 0.1
+        outer_circle_sum = weights_sum * 0.2
+        inner_circle_sum = weights_sum * 0.7
+
+        weights[weights == 0.1] = background_sum / background
+        weights[weights == 0.5] = outer_circle_sum / outer_circle
+        weights[weights == 1.0] = inner_circle_sum / inner_circle
+
+        print(f"background: {background_sum / background}")
+        print(f"outer_circle: {outer_circle_sum / outer_circle}")
+        print(f"inner_circle: {inner_circle_sum / inner_circle}")
 
         self.register_buffer('weights', weights)
         self.log_image(weights.unsqueeze(0), "weights")
@@ -93,6 +117,7 @@ class HVAE(L.LightningModule):
     def _step(self, x):
         x = self.encoder(x)
         mus, logvars = self.latent_space(x)
+        # print first 5 mus and logvars
         last_z = self.latent_space.reparameterize(mus[-1], logvars[-1])
         reconstructed_x = self.decoder(last_z)
         return reconstructed_x, mus, logvars
@@ -115,7 +140,7 @@ class HVAE(L.LightningModule):
         loss = self.compute_loss(x, reconstructed_x, mus, logvars)
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-        if batch_idx % 5 == 0:
+        if batch_idx % 10 == 0:
             self.log_image(x[0], "x")
             self.log_image(reconstructed_x[0], "rx")
 
@@ -153,8 +178,7 @@ class HVAE(L.LightningModule):
         return kl_loss
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='none')
-        rec_loss = torch.mean(rec_loss * self.weights)
+        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='mean', weight=self.weights)
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):

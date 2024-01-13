@@ -18,7 +18,7 @@ def clahe(x: torch.Tensor):
     return x
 
 IS_GREYSCALE = True
-INITIAL_IMAGE_SIZE = 256
+INITIAL_IMAGE_SIZE = 224
 
 base_transform = [
     transforms.Resize((INITIAL_IMAGE_SIZE, INITIAL_IMAGE_SIZE)),
@@ -44,11 +44,10 @@ vae_model = HVAE(
     output_channels = 1 if IS_GREYSCALE else 3,
     encoder_hidden_dims = [64, 128, 256, 512, 1024],
     latent_dims = [512],
-    learning_rate = 1e-3,
+    learning_rate = 1e-4,
     # Raczej między (0, 1) + cyclic annealing
     beta = 1 / 8,
     stride = 2,
-    expansion = 2,
 )
 
 
@@ -65,7 +64,7 @@ logger = TensorBoardLogger(
 )
 
 train_dataset = datasets.ImageFolder(root='SMDG-19/train', transform=train_transform)
-train_dataloader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
 trainer = L.Trainer(
     max_epochs=10,
@@ -79,7 +78,7 @@ trainer = L.Trainer(
 )
 
 val_dataset = datasets.ImageFolder(root='SMDG-19/val', transform=val_transform)
-val_dataloader = DataLoader(val_dataset, batch_size=16, shuffle=False)
+val_dataloader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
 trainer.fit(vae_model, train_dataloader, val_dataloader)
 

@@ -14,15 +14,22 @@ class LatentSpace(nn.Module):
             flattened_size: int,
         ):
         super().__init__()
+        print("LatentSpace:")
+
         self.dims = dims
         self.flattened_size = flattened_size
 
         self.fc_mu = nn.Linear(self.flattened_size, dims[0])
         self.fc_logvar = nn.Linear(self.flattened_size, dims[0])
+        print(f"\t{self.flattened_size} -> {dims[0]}")
 
         # Additional layers for hierarchical structure
-        self.additional_fc_mu = nn.ModuleList([nn.Linear(dims[i], dims[i + 1]) for i in range(len(dims) - 1)])
-        self.additional_fc_logvar = nn.ModuleList([nn.Linear(dims[i], dims[i + 1]) for i in range(len(dims) - 1)])
+        self.additional_fc_mu = nn.ModuleList()
+        self.additional_fc_logvar = nn.ModuleList()
+        for i in range(len(dims) - 1):
+            self.additional_fc_mu.append(nn.Linear(dims[i], dims[i + 1]))
+            self.additional_fc_logvar.append(nn.Linear(dims[i], dims[i + 1]))
+            print(f"\t{dims[i]} -> {dims[i + 1]}")
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
