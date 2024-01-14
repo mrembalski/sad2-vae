@@ -45,7 +45,7 @@ class HVAE(L.LightningModule):
         self.beta = beta
         self.kl_coefficient = 1.0
 
-        self.reduced_size = initial_image_size // (stride ** len(encoder_hidden_dims))
+        self.reduced_size = initial_image_size // (stride ** (len(encoder_hidden_dims) - 1))
         self.flattened_size = encoder_hidden_dims[-1] * self.reduced_size * self.reduced_size
 
         self.encoder = Encoder(
@@ -76,12 +76,10 @@ class HVAE(L.LightningModule):
 
         for i in range(width):
             for j in range(height):
-                if (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= ((circle_radius * 3) // 4) ** 2:
+                if (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= (circle_radius + 2) ** 2:
                     weights[i, j] = 1.0
-                elif (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= (circle_radius + 2) ** 2:
-                    weights[i, j] = 0.5
                 else:
-                    weights[i, j] = 0.1
+                    weights[i, j] = 0.7
 
         print(f"weights_sum / before_weights_sum: {torch.sum(weights) / (width * height)}")
 
@@ -102,11 +100,10 @@ class HVAE(L.LightningModule):
 
         x = x.detach().cpu().numpy()
         x = (x * 255).astype('uint8')
-        if x.shape[1] == 3:
-            Image.fromarray(np.transpose(x, (1, 2, 0)), mode='RGB').save(f"training_tensors/{name}.png")
+        if x.shape[0] == 3:
+            Image.fromarray(x, mode='RGB').save(f"training_tensors/{name}.png")
         else:
             Image.fromarray(x[0], mode='L').save(f"training_tensors/{name}.png")
-
 
     # pylint: disable=arguments-differ
     def training_step(self, batch, batch_idx):
@@ -149,12 +146,10 @@ class HVAE(L.LightningModule):
         }
 
     def kl_divergence_loss(self, mu, logvar):
-        kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-        return kl_loss
+        return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='none')
-        rec_loss = torch.mean(rec_loss * self.weights)
+        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='sum')
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):
@@ -162,8 +157,8 @@ class HVAE(L.LightningModule):
 
         bkl_loss = self.kl_coefficient * self.beta * kl_loss
 
-        print(f"recon_loss: {rec_loss:.4f}")
-        print(f"bkl*c_loss: {bkl_loss:.4f}")
+        self.log('recon_loss', rec_loss, on_step=True, on_epoch=True, logger=True)
+        self.log('bkl*c_loss', bkl_loss, on_step=True, on_epoch=True, logger=True)
 
         loss = rec_loss + bkl_loss
         return loss

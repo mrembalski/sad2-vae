@@ -21,7 +21,7 @@ class LatentSpace(nn.Module):
 
         self.fc_mu = nn.Linear(self.flattened_size, dims[0])
         self.fc_logvar = nn.Linear(self.flattened_size, dims[0])
-        print(f"\t{self.flattened_size} -> {dims[0]}")
+        print(f"\t{self.flattened_size} (flattened) -> {dims[0]}")
 
         # Additional layers for hierarchical structure
         self.additional_fc_mu = nn.ModuleList()

@@ -1,4 +1,4 @@
-# pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring, line-too-long
+# pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring, line-too-long, too-few-public-methods
 from torch import nn
 from typeguard import typechecked
 
@@ -8,14 +8,12 @@ class ResNetEncoderBlock(nn.Module):
         super().__init__()
         self.stride = stride
 
-        # Residual function
         self.residual_function = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1),
-            nn.LeakyReLU(inplace=True),
+            nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
         )
 
-        # Shortcut connection
         self.shortcut = nn.Sequential()
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
@@ -25,9 +23,8 @@ class ResNetEncoderBlock(nn.Module):
     def forward(self, x):
         shortcut = self.shortcut(x)
         residual = self.residual_function(x)
-
         x = residual + shortcut
-        x = nn.LeakyReLU(inplace=True)(x)
+        x = nn.ReLU(inplace=True)(x)
         return x
 
 class Encoder(nn.Module):
@@ -43,9 +40,13 @@ class Encoder(nn.Module):
         self.in_channels = input_channels
         layers = []
 
-        for h_dim in encoder_hidden_dims:
-            layers.append(ResNetEncoderBlock(self.in_channels, h_dim, stride=stride))
-            print(f"\t{self.in_channels} -> {h_dim}")
+        for i, h_dim in enumerate(encoder_hidden_dims):
+            if i == 0:
+                layers.append(ResNetEncoderBlock(self.in_channels, h_dim, stride=1))
+                print(f"\t{self.in_channels} -> {h_dim}, stride=1")
+            else:
+                layers.append(ResNetEncoderBlock(self.in_channels, h_dim, stride=stride))
+                print(f"\t{self.in_channels} -> {h_dim}, stride={stride}")
             self.in_channels = h_dim
 
         self.encoder = nn.Sequential(*layers)
