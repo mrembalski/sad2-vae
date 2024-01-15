@@ -18,7 +18,7 @@ class KLAnnealingCallback(L.Callback):
         self.anneal_steps = anneal_steps
 
     # pylint: disable=too-many-arguments
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+    def on_train_batch_start(self, trainer, pl_module, outputs, batch):
         current_step = trainer.global_step % self.anneal_steps
 
         new_kl_coefficient = 1 - (0.5 * (1 + np.cos(np.pi * current_step / self.anneal_steps)))
@@ -79,7 +79,7 @@ class HVAE(L.LightningModule):
                 if (i - circle_center[0]) ** 2 + (j - circle_center[1]) ** 2 <= (circle_radius + 2) ** 2:
                     weights[i, j] = 1.0
                 else:
-                    weights[i, j] = 0.7
+                    weights[i, j] = 0.5
 
         print(f"weights_sum / before_weights_sum: {torch.sum(weights) / (width * height)}")
 
@@ -101,7 +101,7 @@ class HVAE(L.LightningModule):
         x = x.detach().cpu().numpy()
         x = (x * 255).astype('uint8')
         if x.shape[0] == 3:
-            Image.fromarray(x, mode='RGB').save(f"training_tensors/{name}.png")
+            Image.fromarray(x.transpose(1, 2, 0), mode='RGB').save(f"training_tensors/{name}.png")
         else:
             Image.fromarray(x[0], mode='L').save(f"training_tensors/{name}.png")
 
@@ -149,7 +149,7 @@ class HVAE(L.LightningModule):
         return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
     def compute_loss(self, x, reconstructed_x, mus, logvars):
-        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='sum')
+        rec_loss = F.binary_cross_entropy(reconstructed_x, x, reduction='sum', weight=self.weights)
 
         kl_loss = torch.tensor(0.0, device=self.device)
         for mu, logvar in zip(mus, logvars):
