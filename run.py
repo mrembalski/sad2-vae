@@ -30,15 +30,15 @@ def initialize_weights(m):
         nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
         nn.init.constant_(m.bias, 0)
 
+
 IS_GREYSCALE = True
-INITIAL_IMAGE_SIZE = 256
+INITIAL_IMAGE_SIZE = 128
 
 base_transform = [
     transforms.Resize((INITIAL_IMAGE_SIZE, INITIAL_IMAGE_SIZE)),
     # Turn to RGB
     transforms.Lambda(lambda x: x.convert('RGB')),
     transforms.ToTensor(),
-    # Get green channel if greyscale else turn to RGB
     transforms.Lambda(lambda x: \
         (0.299 * x[0] + 0.587 * x[1] + 0.114 * x[2]).unsqueeze(0) if IS_GREYSCALE else x),
     transforms.RandomHorizontalFlip(p=0.5),
@@ -50,7 +50,6 @@ train_transform = transforms.Compose(
     transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
     transforms.Lambda(clahe),
 ])
-
 
 val_transform = transforms.Compose(
     base_transform + [
@@ -72,12 +71,12 @@ vae_model = HVAE(
     output_channels=1 if IS_GREYSCALE else 3,
     # Remember, that first layer has stride=1.
     # It acutally helped to deblurr the images a lot.
-    encoder_hidden_dims=[32] + [32, 64, 128, 256, 512],
-    latent_dims=[512],
+    encoder_hidden_dims=[32] + [64, 128],
+    latent_dims=[256],
     learning_rate=1e-4,
-    # Remember, that effectively beta is halved 
+    # Remember, that effectively beta is halved
     # due to annealing.
-    beta=1/2,
+    beta=2,
     stride=2,
 )
 
@@ -86,13 +85,14 @@ vae_model.apply(initialize_weights)
 logger = TensorBoardLogger(
     "tb_logs",
     name="HVAE",
+    version="latent_dims=[256_new]",
 )
 
 trainer = L.Trainer(
-    max_epochs=150,
+    max_epochs=50,
     callbacks=[
         ModelSummary(max_depth=5),
-        KLAnnealingCallback(anneal_steps=len(train_dataloader)),
+        KLAnnealingCallback(anneal_steps=(len(train_dataloader) // 2) * 5),
         LearningRateMonitor(logging_interval='step'),
     ],
     log_every_n_steps=1,
